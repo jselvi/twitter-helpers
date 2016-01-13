@@ -1,0 +1,5 @@
+# Get your tokens at https://dev.twitter.com/oauth/overview/application-owner-access-tokens
+:oauth_token:     'YOUR_TOKEN_HERE'
+:oauth_secret:    'YOUR_TOKEN_HERE'
+:consumer_key:    'YOUR_TOKEN_HERE'
+:consumer_secret: 'YOUR_TOKEN_HERE'
