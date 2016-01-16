@@ -203,10 +203,6 @@ OptionParser.new do |opts|
     options[:links] = links
   end
 
-  opts.on("--stats", "Show statistics instead of tweets") do |stats|
-    options[:stats] = stats
-  end
-
 end.parse!
 
 # Instantiate helper class
@@ -224,15 +220,10 @@ if options[:html]
 end
 
 # Request tweets or statistics
-if options[:stats]
-  s = "pending to implement"
-  puts s
+output = helper.tweets(:source => options[:timeline], :top => options[:top], :links => options[:links], :color => options[:color])
+if output
+  puts output
 else
-  output = helper.tweets(:source => options[:timeline], :top => options[:top], :links => options[:links], :color => options[:color])
-  if output
-    puts output
-  else
-    puts helper.error
-  end
+  puts helper.error
 end
 
