@@ -71,7 +71,7 @@ class TwitterHelper
   end
 
   # Return tweets
-  def tweets(source: nil, top: nil, since: nil)
+  def tweets(source: nil, top: nil, since: nil, links: false)
     # Login if we have not logged yet
     if check_twitter or not login
       return nil
@@ -91,6 +91,15 @@ class TwitterHelper
       rescue => e
         @error = "Source not found: #{e.message}"
         return nil
+      end
+    end
+
+    # Keep only tweets including links if required
+    if links
+      my_tweet_list.each do |t|
+        if t.urls.count == 0
+          my_tweet_list.delete(t)
+	end
       end
     end
 
@@ -117,13 +126,9 @@ class TwitterHelper
 end
 
 # Parse command line options
-options = {:twitter_config => 'twitter.yml'}
+options = {:twitter_config => 'twitter.yml', :links => false}
 OptionParser.new do |opts|
   opts.banner = "Usage: twitter_helper.rb [options]"
-
-  opts.on("-v", "--[no-]verbose", "Run verbosely") do |v|
-    options[:verbose] = v
-  end
 
   opts.on("-h", "--help", "Prints this help") do
     puts opts
@@ -144,6 +149,10 @@ OptionParser.new do |opts|
 
   opts.on("--html", "HTML output") do |html|
     options[:html] = html
+  end
+
+  opts.on("-l", "--links", "Show only tweets with links") do |links|
+    options[:links] = links
   end
 
   opts.on("--stats", "Show statistics instead of tweets") do |stats|
@@ -171,7 +180,7 @@ if options[:stats]
   s = "pending to implement"
   puts s
 else
-  output = helper.tweets(:source => options[:timeline], :top => options[:top])
+  output = helper.tweets(:source => options[:timeline], :top => options[:top], :links => options[:links])
   if output
     puts output
   else
