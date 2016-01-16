@@ -3,6 +3,7 @@ GEM
   specs:
     addressable (2.4.0)
     buftok (0.2.0)
+    colorize (0.7.7)
     domain_name (0.5.25)
       unf (>= 0.0.5, < 1.0.0)
     equalizer (0.0.10)
@@ -43,6 +44,7 @@ PLATFORMS
   ruby
 
 DEPENDENCIES
+  colorize
   twitter
 
 BUNDLED WITH

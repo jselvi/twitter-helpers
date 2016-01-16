@@ -3,6 +3,7 @@
 require 'optparse'
 require 'yaml'
 require 'twitter'
+require 'colorize'
 
 class TwitterHelper
 
@@ -17,6 +18,15 @@ class TwitterHelper
   # Output format
   @output_format = :text 
 
+  # Color selector
+  @@color_bracket = {:color => :light_white}
+  @@color_counter = {:color => :light_yellow}
+  @@color_at      = {:color => :light_green}
+  @@color_nick    = {:color => :light_white}
+  @@color_url     = {:color => :light_white , :mode => :underline}
+  @@color_keyword = {:color => :light_red   , :mode => :underline}
+  @@color_hashtag = {:color => :light_cyan}
+
   # Constructor
   def initialize
   
@@ -30,6 +40,37 @@ class TwitterHelper
   # Set output format
   def html_output
     @output_format = :html
+  end
+
+  # Colorize output
+  def colorize(text, keywords = [])
+    # Retweets counter Highligh
+    text.scan(/^\[[a-zA-Z0-9_]+\]/).each do |counter|
+       ccounter = "#{counter[0].colorize(@@color_bracket)}#{counter[1..-2].colorize(@@color_counter)}#{counter[-1].colorize(@@color_bracket)}"
+       text.gsub! counter, ccounter
+    end
+    # Twitter Username Highligh
+    text.scan(/@[a-zA-Z0-9_]+/).each do |username|
+       cusername = "#{username[0].colorize(@@color_at)}#{username[1..-1].colorize(@@color_nick)}"
+       text.gsub! username, cusername
+    end
+    # URL Highligh
+    text.scan(/https?:\/\/[\S]+/).each do |u|
+       cu = u.colorize(@@color_url)
+       text.gsub! u, cu
+    end
+    # Hashtag Highligh
+    text.scan(/#[a-zA-Z0-9]+/).each do |hashtag|
+       chashtag = hashtag.colorize(@@color_hashtag)
+       text.gsub! hashtag, chashtag
+    end
+    # Keywords Highligh
+    rgex = keywords.join("|")
+    text.scan(/#{Regexp.escape(rgex)}/i).each do |k|
+      ck = k.colorize(@@color_keyword)
+      text.gsub! k, ck
+    end
+    return text
   end
 
   # Load YAML file
@@ -71,7 +112,7 @@ class TwitterHelper
   end
 
   # Return tweets
-  def tweets(source: nil, top: nil, since: nil, links: false)
+  def tweets(source: nil, top: nil, since: nil, links: false, color: false)
     # Login if we have not logged yet
     if check_twitter or not login
       return nil
@@ -114,6 +155,9 @@ class TwitterHelper
     my_tweet_list.each do |t|
       if @output_format != :html
         text = "[#{t.retweet_count.to_s}]\t#{t.full_text}"
+	if color
+          text = colorize(text)
+        end
       else
         text = "<a href=\"#{t.uri}\">[#{t.retweet_count.to_s}]\t#{t.full_text}</a><br>"
       end
@@ -151,6 +195,10 @@ OptionParser.new do |opts|
     options[:html] = html
   end
 
+  opts.on("--color", "Colorize output") do |color|
+    options[:color] = color
+  end
+
   opts.on("-l", "--links", "Show only tweets with links") do |links|
     options[:links] = links
   end
@@ -180,7 +228,7 @@ if options[:stats]
   s = "pending to implement"
   puts s
 else
-  output = helper.tweets(:source => options[:timeline], :top => options[:top], :links => options[:links])
+  output = helper.tweets(:source => options[:timeline], :top => options[:top], :links => options[:links], :color => options[:color])
   if output
     puts output
   else
