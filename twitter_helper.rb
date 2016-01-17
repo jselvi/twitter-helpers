@@ -146,9 +146,9 @@ class TwitterHelper
     output = []
     tweets.each do |t|
       if html
-        text = "<a href=\"#{t.uri}\">[#{t.retweet_count.to_s}]\t#{t.full_text}</a><br>"
+        text = "<a href=\"#{t.uri}\">[#{t.retweet_count.to_s}]\t<@#{t.user.screen_name}> #{t.full_text}</a><br>"
       else
-	text = "[#{t.retweet_count.to_s}]\t#{t.full_text}"
+	text = "[#{t.retweet_count.to_s}]\t<@#{t.user.screen_name}> #{t.full_text}".delete("\n")
 	if color
           text = colorize(text, keywords)
         end
@@ -283,7 +283,6 @@ end
 # Request tweets or search
 if options[:search]
   output = helper.search(:top => options[:top], :links => options[:links], :color => options[:color], :keywords => options[:search])
-
 else
   output = helper.tweets(:source => options[:timeline], :top => options[:top], :links => options[:links], :color => options[:color], :keywords => options[:keywords])
 end
