@@ -114,32 +114,9 @@ class TwitterHelper
     check_twitter
   end
 
-  # Return tweets
-  def tweets(source: nil, top: nil, since: nil, links: false, color: false, keywords: nil)
-    # Login if we have not logged yet
-    if check_twitter or not login
-      return nil
-    end
-
-    # Extract tweets from twitter
-    if not source
-      my_tweet_list = @twitter_client.home_timeline(:count => 200)
-    else
-      begin
-        if source.start_with?("@")
-          my_tweet_list = @twitter_client.user_timeline(source, :count => 200)
-        else
-          my_list = @twitter_client.list(source)
-          my_tweet_list = @twitter_client.list_timeline(my_list, :count => 200)
-        end
-      rescue => e
-        @error = "Source not found: #{e.message}"
-        return nil
-      end
-    end
-
-    # Keep only interesting tweets
-    my_tweet_list.delete_if do |t|
+  # Filter tweets
+  def tweet_filter(tweet_list: nil, top: nil, since:nil, links: false, keywords: nil)
+    tweet_list.delete_if do |t|
       delete = false
       # Remove tweets that does not contain links
       if links && t.urls.count == 0
@@ -158,31 +135,95 @@ class TwitterHelper
 
     # Sort tweets if required
     if top
-      temp_array = my_tweet_list.sort_by {|t| t.retweet_count}
-      my_tweet_list = temp_array.reverse.take(top)
+      temp_array = tweet_list.sort_by {|t| t.retweet_count}
+      tweet_list = temp_array.reverse.take(top)
     end
+    return tweet_list
+  end
 
-    # Translate to human readable
+  # Output formats
+  def print(tweets: nil, color: false, html: false, keywords: nil)
     output = []
-    my_tweet_list.each do |t|
-      if @output_format != :html
-        text = "[#{t.retweet_count.to_s}]\t#{t.full_text}"
+    tweets.each do |t|
+      if html
+        text = "<a href=\"#{t.uri}\">[#{t.retweet_count.to_s}]\t#{t.full_text}</a><br>"
+      else
+	text = "[#{t.retweet_count.to_s}]\t#{t.full_text}"
 	if color
           text = colorize(text, keywords)
         end
-      else
-        text = "<a href=\"#{t.uri}\">[#{t.retweet_count.to_s}]\t#{t.full_text}</a><br>"
       end
       output.push(text)
     end
-
     return output
+  end
+
+  # Return tweets
+  def tweets(source: nil, top: nil, since: nil, links: false, color: false, keywords: nil)
+    # Login if we have not logged yet
+    if check_twitter or not login
+      return nil
+    end
+
+    # Extract tweets from twitter
+    if not source
+      tweet_list = @twitter_client.home_timeline(:count => 200)
+    else
+      begin
+        if source.start_with?("@")
+          tweet_list = @twitter_client.user_timeline(source, :count => 200)
+        else
+          my_list = @twitter_client.list(source)
+          tweet_list = @twitter_client.list_timeline(my_list, :count => 200)
+        end
+      rescue => e
+        @error = "Source not found: #{e.message}"
+        return nil
+      end
+    end
+
+    # Filter tweets
+    my_twitter_list = tweet_filter(:tweet_list => tweet_list, :top => top, :links => links, :keywords => keywords)
+
+    # Translate to human readable
+    return print(:tweets => my_twitter_list, :color => color, :keywords => keywords)
+  end
+
+  # Search tweets
+  def search(top: nil, since:nil, links: false , color: false , keywords: nil )
+    # Keywords are mandatory
+    if keywords.nil? || keywords.count == 0
+      return nil
+    end 
+
+    # Login if we have not logged yet
+    if check_twitter or not login
+      return nil
+    end
+
+    # Prepare search terms
+    search_terms = "#{keywords.join(" ")} -filter:retweets"
+    if links
+      search_terms << " filter:links"
+    end
+
+    # Extract tweets from twitter
+    tweet_list = []
+    @twitter_client.search(search_terms, :result_type => "recent", :count => 100).each do |t|
+      tweet_list.push(t)
+    end
+
+    # Filter results
+    my_twitter_list = tweet_filter(:tweet_list => tweet_list, :top => top, :links => links)
+
+    # Translate to human readable
+    return print(:tweets => my_twitter_list, :color => color, :keywords => keywords)
   end
 
 end
 
 # Parse command line options
-options = {:twitter_config => 'twitter.yml', :links => false, :keywords => nil}
+options = {:twitter_config => 'twitter.yml', :links => false, :keywords => nil, :search => nil}
 OptionParser.new do |opts|
   opts.banner = "Usage: twitter_helper.rb [options]"
 
@@ -219,6 +260,10 @@ OptionParser.new do |opts|
     options[:keywords] = keywords.split(",")
   end
 
+  opts.on("-s x,y,z", "--search x,y,z", "Search tweets containing those words") do |search|
+    options[:search] = search.split(",")
+  end
+
 end.parse!
 
 # Instantiate helper class
@@ -235,8 +280,15 @@ if options[:html]
   helper.html_output
 end
 
-# Request tweets or statistics
-output = helper.tweets(:source => options[:timeline], :top => options[:top], :links => options[:links], :color => options[:color], :keywords => options[:keywords])
+# Request tweets or search
+if options[:search]
+  output = helper.search(:top => options[:top], :links => options[:links], :color => options[:color], :keywords => options[:search])
+
+else
+  output = helper.tweets(:source => options[:timeline], :top => options[:top], :links => options[:links], :color => options[:color], :keywords => options[:keywords])
+end
+
+# Print output
 if output
   puts output
 else
