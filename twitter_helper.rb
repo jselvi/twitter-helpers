@@ -43,7 +43,7 @@ class TwitterHelper
   end
 
   # Colorize output
-  def colorize(text, keywords = [])
+  def colorize(text, keywords = nil)
     # Retweets counter Highligh
     text.scan(/^\[[a-zA-Z0-9_]+\]/).each do |counter|
        ccounter = "#{counter[0].colorize(@@color_bracket)}#{counter[1..-2].colorize(@@color_counter)}#{counter[-1].colorize(@@color_bracket)}"
@@ -65,10 +65,13 @@ class TwitterHelper
        text.gsub! hashtag, chashtag
     end
     # Keywords Highligh
-    rgex = keywords.join("|")
-    text.scan(/#{Regexp.escape(rgex)}/i).each do |k|
-      ck = k.colorize(@@color_keyword)
-      text.gsub! k, ck
+    if keywords
+      rgex = keywords.join("|")
+      text.scan(/\b(#{rgex})\b/i).each do |k|
+        sk = k.join
+        ck = sk.colorize(@@color_keyword)
+        text.gsub! sk, ck
+      end
     end
     return text
   end
@@ -112,7 +115,7 @@ class TwitterHelper
   end
 
   # Return tweets
-  def tweets(source: nil, top: nil, since: nil, links: false, color: false)
+  def tweets(source: nil, top: nil, since: nil, links: false, color: false, keywords: nil)
     # Login if we have not logged yet
     if check_twitter or not login
       return nil
@@ -135,13 +138,22 @@ class TwitterHelper
       end
     end
 
-    # Keep only tweets including links if required
-    if links
-      my_tweet_list.each do |t|
-        if t.urls.count == 0
-          my_tweet_list.delete(t)
-	end
+    # Keep only interesting tweets
+    my_tweet_list.delete_if do |t|
+      delete = false
+      # Remove tweets that does not contain links
+      if links && t.urls.count == 0
+        delete = true
       end
+      # Remove tweets that does not contain a keyword
+      if keywords
+        rgex = keywords.join("|")
+	kcount = t.full_text.scan(/\b(#{rgex})\b/i).count
+        if kcount == 0
+          delete = true
+        end
+      end
+      delete
     end
 
     # Sort tweets if required
@@ -156,7 +168,7 @@ class TwitterHelper
       if @output_format != :html
         text = "[#{t.retweet_count.to_s}]\t#{t.full_text}"
 	if color
-          text = colorize(text)
+          text = colorize(text, keywords)
         end
       else
         text = "<a href=\"#{t.uri}\">[#{t.retweet_count.to_s}]\t#{t.full_text}</a><br>"
@@ -170,7 +182,7 @@ class TwitterHelper
 end
 
 # Parse command line options
-options = {:twitter_config => 'twitter.yml', :links => false}
+options = {:twitter_config => 'twitter.yml', :links => false, :keywords => nil}
 OptionParser.new do |opts|
   opts.banner = "Usage: twitter_helper.rb [options]"
 
@@ -203,6 +215,10 @@ OptionParser.new do |opts|
     options[:links] = links
   end
 
+  opts.on("-k x,y,z", "--keywords x,y,z", "Show only tweets containing those words") do |keywords|
+    options[:keywords] = keywords.split(",")
+  end
+
 end.parse!
 
 # Instantiate helper class
@@ -220,7 +236,7 @@ if options[:html]
 end
 
 # Request tweets or statistics
-output = helper.tweets(:source => options[:timeline], :top => options[:top], :links => options[:links], :color => options[:color])
+output = helper.tweets(:source => options[:timeline], :top => options[:top], :links => options[:links], :color => options[:color], :keywords => options[:keywords])
 if output
   puts output
 else
