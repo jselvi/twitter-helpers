@@ -142,13 +142,17 @@ class TwitterHelper
   end
 
   # Output formats
-  def print(tweets: nil, color: false, html: false, keywords: nil)
+  def print(tweets: nil, color: false, html: false, cut: nil, keywords: nil)
     output = []
     tweets.each do |t|
       if html
         text = "<a href=\"#{t.uri}\">[#{t.retweet_count.to_s}]\t<@#{t.user.screen_name}> #{t.full_text}</a><br>"
       else
 	text = "[#{t.retweet_count.to_s}]\t<@#{t.user.screen_name}> #{t.full_text}".delete("\n")
+	if cut
+          n = cut.to_i - 3
+	  text = "#{text[0..n]}..."
+        end
 	if color
           text = colorize(text, keywords)
         end
@@ -159,7 +163,7 @@ class TwitterHelper
   end
 
   # Return tweets
-  def tweets(source: nil, top: nil, since: nil, links: false, color: false, keywords: nil)
+  def tweets(source: nil, top: nil, since: nil, links: false, color: false, cut: nil, keywords: nil)
     # Login if we have not logged yet
     if check_twitter or not login
       return nil
@@ -186,11 +190,11 @@ class TwitterHelper
     my_twitter_list = tweet_filter(:tweet_list => tweet_list, :top => top, :links => links, :keywords => keywords)
 
     # Translate to human readable
-    return print(:tweets => my_twitter_list, :color => color, :keywords => keywords)
+    return print(:tweets => my_twitter_list, :color => color, :cut => cut, :keywords => keywords)
   end
 
   # Search tweets
-  def search(top: nil, since:nil, links: false , color: false , keywords: nil )
+  def search(top: nil, since:nil, links: false , color: false , keywords: nil, cut: nil )
     # Keywords are mandatory
     if keywords.nil? || keywords.count == 0
       return nil
@@ -217,7 +221,7 @@ class TwitterHelper
     my_twitter_list = tweet_filter(:tweet_list => tweet_list, :top => top, :links => links)
 
     # Translate to human readable
-    return print(:tweets => my_twitter_list, :color => color, :keywords => keywords)
+    return print(:tweets => my_twitter_list, :color => color, :cut => cut, :keywords => keywords)
   end
 
 end
@@ -232,7 +236,7 @@ OptionParser.new do |opts|
     exit
   end
 
-  opts.on("-c file", "--twitter-config file", String, "Twitter configuration file (YAML format)") do |config|
+  opts.on("--twitter-config file", String, "Twitter configuration file (YAML format)") do |config|
     options[:twitter_config] = config
   end
 
@@ -254,6 +258,10 @@ OptionParser.new do |opts|
 
   opts.on("-l", "--links", "Show only tweets with links") do |links|
     options[:links] = links
+  end
+
+  opts.on("-c num", "--cut num", "Cut the output lines to num characters") do |cut|
+    options[:cut] = cut
   end
 
   opts.on("-k x,y,z", "--keywords x,y,z", "Show only tweets containing those words") do |keywords|
@@ -282,9 +290,9 @@ end
 
 # Request tweets or search
 if options[:search]
-  output = helper.search(:top => options[:top], :links => options[:links], :color => options[:color], :keywords => options[:search])
+  output = helper.search(:top => options[:top], :links => options[:links], :color => options[:color], :keywords => options[:search], :cut => options[:cut])
 else
-  output = helper.tweets(:source => options[:timeline], :top => options[:top], :links => options[:links], :color => options[:color], :keywords => options[:keywords])
+  output = helper.tweets(:source => options[:timeline], :top => options[:top], :links => options[:links], :color => options[:color], :keywords => options[:keywords], :cut => options[:cut])
 end
 
 # Print output
